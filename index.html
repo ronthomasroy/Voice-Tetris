@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Voice Tetris</title>
+  <style>
+    body { text-align: center; font-family: 'Segoe UI', Arial, sans-serif; background: linear-gradient(135deg, #111 60%, #222 100%); color: white; }
+    #main-container {
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+      margin-top: 48px;
+      width: 100vw;
+      max-width: 1200px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+    #game-area {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    canvas { background: #000; display: block; margin: 0; box-shadow: 0 0 32px #00f7, 0 0 8px #0ff; border-radius: 12px; }
+    #score {
+      font-size: 2.4rem;
+      font-weight: bold;
+      color: #ff0;
+      margin-bottom: 18px;
+      text-shadow: 0 2px 12px #000, 0 0 8px #ff0a;
+    }
+    #menu { display: block; margin-top: 24px; font-size: 24px; }
+    #bg-video {
+      position: fixed;
+      right: 0;
+      bottom: 0;
+      min-width: 100vw;
+      min-height: 100vh;
+      z-index: -1;
+      object-fit: cover;
+      pointer-events: none;
+    }
+    h1 {
+      font-size: 3.2rem;
+      letter-spacing: 0.08em;
+      margin-top: 32px;
+      margin-bottom: 8px;
+      background: linear-gradient(90deg, #00fff7 30%, #ff00ea 70%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      text-shadow: 0 2px 16px #00f7, 0 0 2px #fff;
+      font-weight: bold;
+    }
+    .instructions {
+      margin-left: 56px;
+      margin-top: 0;
+      max-width: 320px;
+      font-size: 1.2rem;
+      background: rgba(0,0,0,0.45);
+      border-radius: 8px;
+      padding: 16px 24px;
+      box-shadow: 0 2px 12px #00f7a0a0;
+      text-align: left;
+      color: #fff;
+      align-self: flex-start;
+    }
+    .instructions li {
+      margin-bottom: 8px;
+    }
+    .instructions-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background: rgba(0,0,0,0.82);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+    }
+    .instructions-content {
+      background: rgba(20,20,30,0.98);
+      border-radius: 16px;
+      padding: 36px 48px 28px 48px;
+      box-shadow: 0 4px 32px #00f7a0a0;
+      color: #fff;
+      text-align: center;
+      max-width: 400px;
+    }
+    .instructions-content h2 {
+      font-size: 2rem;
+      margin-bottom: 18px;
+      background: linear-gradient(90deg, #00fff7 30%, #ff00ea 70%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      text-shadow: 0 2px 16px #00f7, 0 0 2px #fff;
+    }
+    .instructions-content ul {
+      list-style: disc inside;
+      margin: 0 0 8px 0;
+      padding: 0;
+      text-align: left;
+    }
+    .instructions-content li {
+      margin-bottom: 10px;
+      font-size: 1.15rem;
+    }
+    /* Alternate and closer to center */
+    .side-img {
+      position: absolute;
+      width: 220px;
+      max-width: 20vw;
+      z-index: 10;
+      opacity: 0.95;
+      pointer-events: none;
+      user-select: none;
+      transition: transform 0.3s;
+    }
+    /* Alternating left side */
+    .side-img.left1 { left: 10vw; top: 80px; transform: rotate(-14deg); }
+    .side-img.left2 { left: 7vw; top: 320px; transform: rotate(-7deg) scale(1.08); }
+    .side-img.left3 { left: 10vw; top: 560px; transform: rotate(-18deg) scale(0.95); }
+    /* Alternating right side */
+    .side-img.right1 { right: 10vw; top: 170px; transform: rotate(12deg); }
+    .side-img.right2 { right: 7vw; top: 410px; transform: rotate(6deg) scale(1.1); }
+    .side-img.right3 { right: 10vw; top: 650px; transform: rotate(18deg) scale(0.92); }
+    @media (max-width: 1200px) {
+      .side-img { width: 120px; max-width: 16vw; }
+    }
+    @media (max-width: 900px) {
+      .side-img { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <video id="bg-video" autoplay loop muted playsinline style="visibility:hidden; position:absolute; width:1px; height:1px;">
+    <source src="tetrisbg.mp4" type="video/mp4">
+    Your browser does not support the video tag.
+  </video>
+  <h1>Voice Tetris</h1>
+  <div id="main-container">
+    <div id="game-area">
+      <div id="score">Score: 0</div>
+      <canvas id="game" width="420" height="840"></canvas>
+      <div id="menu">Say “start” or press any key to begin</div>
+    </div>
+  </div>
+  <!-- Alternating images on both sides -->
+  <img src="tetrisimg.png" alt="Tetris Art Left 1" class="side-img left1" />
+  <img src="tetrisimg2.png" alt="Tetris Art Left 2" class="side-img left2" />
+  <img src="tetrisimg.png" alt="Tetris Art Left 3" class="side-img left3" />
+  <img src="tetrisimg2.png" alt="Tetris Art Right 1" class="side-img right1" />
+  <img src="tetrisimg.png" alt="Tetris Art Right 2" class="side-img right2" />
+  <img src="tetrisimg2.png" alt="Tetris Art Right 3" class="side-img right3" />
+  <div id="instructions-overlay" class="instructions-overlay">
+    <div class="instructions-content">
+      <h2>How to Play</h2>
+      <ul>
+        <li>Say <b>"start"</b> or press any key to begin the game.</li>
+        <li>Use voice commands: <b>left</b>, <b>right</b>, <b>down</b>, <b>rotate</b>, <b>drop</b> to control the pieces.</li>
+        <li style="color:#ff0;">Speak commands <b>clearly and quickly</b>—there may be a short delay before the action happens.</li>
+      </ul>
+      <div style="margin-top:16px; font-size:1.1rem; color:#ff0;">You can also use the keyboard!</div>
+    </div>
+  </div>
+
+  <script>
+    const canvas = document.getElementById('game');
+    const ctx = canvas.getContext('2d');
+    const menu = document.getElementById('menu');
+    const scoreDisplay = document.getElementById('score');
+
+    const BLOCK_SIZE = 42;
+    const COLUMNS = 10;
+    const ROWS = 20; // Will update below to match canvas height
+
+    // Dynamically set ROWS based on canvas height
+    const ROWS_DYNAMIC = Math.floor(canvas.height / BLOCK_SIZE);
+
+    const COLORS = ['cyan', 'magenta', 'yellow', 'lime', 'red', 'blue', 'orange'];
+
+    const SHAPES = [
+      [[1,1,1,1]],
+      [[1,1],[1,1]],
+      [[0,1,0],[1,1,1]],
+      [[0,1,1],[1,1,0]],
+      [[1,1,0],[0,1,1]],
+      [[1,0,0],[1,1,1]],
+      [[0,0,1],[1,1,1]],
+    ];
+
+    let grid = [];
+    let current, timer = 0, points = 0, startTime = null;
+    let fallSpeed = 500;
+    let lastFall = 0;
+    let listening = false;
+    let justDropped = false;
+    let pieceLocked = false;
+    let lastActionTime = {
+      left: 0,
+      right: 0,
+      down: 0,
+      rotate: 0,
+      drop: 0
+    };
+    const ACTION_COOLDOWN = 300; // ms
+
+    const resetGrid = () => {
+      grid = Array.from({length: ROWS_DYNAMIC}, () => Array(COLUMNS).fill(null));
+    };
+
+    const newPiece = () => {
+      const shape = SHAPES[Math.floor(Math.random() * SHAPES.length)];
+      return {
+        shape,
+        x: Math.floor(COLUMNS / 2 - shape[0].length / 2),
+        y: 0,
+        color: COLORS[Math.floor(Math.random() * COLORS.length)]
+      };
+    };
+
+    const drawGrid = () => {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      // Draw video background inside the play area
+      const video = document.getElementById('bg-video');
+      if (video && video.readyState >= 2) {
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      }
+      grid.forEach((row, y) => {
+        row.forEach((color, x) => {
+          if (color) {
+            ctx.fillStyle = color;
+            ctx.fillRect(x * BLOCK_SIZE, y * BLOCK_SIZE, BLOCK_SIZE, BLOCK_SIZE);
+          }
+        });
+      });
+
+      if (!current) return; // Prevent error if current is undefined
+
+      current.shape.forEach((row, dy) => {
+        row.forEach((val, dx) => {
+          if (val) {
+            ctx.fillStyle = current.color;
+            ctx.fillRect((current.x + dx) * BLOCK_SIZE, (current.y + dy) * BLOCK_SIZE, BLOCK_SIZE, BLOCK_SIZE);
+          }
+        });
+      });
+    };
+
+    const validMove = (shape, offsetX, offsetY) => {
+      for (let y = 0; y < shape.length; y++) {
+        for (let x = 0; x < shape[y].length; x++) {
+          if (shape[y][x]) {
+            const newX = current.x + x + offsetX;
+            const newY = current.y + y + offsetY;
+            if (newX < 0 || newX >= COLUMNS || newY >= ROWS_DYNAMIC || (newY >= 0 && grid[newY][newX])) {
+              return false;
+            }
+          }
+        }
+      }
+      return true;
+    };
+
+    const merge = () => {
+      current.shape.forEach((row, y) => {
+        row.forEach((val, x) => {
+          if (val && current.y + y >= 0) {
+            grid[current.y + y][current.x + x] = current.color;
+          }
+        });
+      });
+    };
+
+    const rotate = () => {
+      const rotated = current.shape[0].map((_, i) =>
+        current.shape.map(row => row[i]).reverse()
+      );
+      if (validMove(rotated, 0, 0)) current.shape = rotated;
+    };
+
+    const clearLines = () => {
+      let lines = 0;
+      for (let y = ROWS_DYNAMIC - 1; y >= 0; y--) {
+        if (grid[y].every(cell => cell)) {
+          grid.splice(y, 1);
+          grid.unshift(Array(COLUMNS).fill(null));
+          lines++;
+        }
+      }
+      points += lines * 100;
+      scoreDisplay.textContent = 'Score: ' + points;
+    };
+
+    const drop = () => {
+      while (validMove(current.shape, 0, 1)) current.y++;
+    };
+
+    const gameStep = (timestamp) => {
+      if (!startTime) {
+        drawGrid();
+        requestAnimationFrame(gameStep);
+        return;
+      }
+      if (!lastFall) lastFall = timestamp;
+      if (timestamp - lastFall > fallSpeed) {
+        if (validMove(current.shape, 0, 1)) {
+          current.y++;
+        } else {
+          merge();
+          clearLines();
+          current = newPiece();
+          // justDropped and pieceLocked are NOT reset here anymore
+          if (!validMove(current.shape, 0, 0)) {
+            alert("Game Over!");
+            location.reload();
+            return;
+          }
+        }
+        lastFall = timestamp;
+      }
+      drawGrid();
+      requestAnimationFrame(gameStep);
+    };
+
+    const hideInstructions = () => {
+      const overlay = document.getElementById('instructions-overlay');
+      if (overlay) overlay.style.display = 'none';
+    };
+    const startGame = () => {
+      menu.style.display = 'none';
+      hideInstructions();
+      resetGrid();
+      current = newPiece();
+      startTime = Date.now();
+      points = 0;
+      scoreDisplay.textContent = 'Score: 0';
+      drawGrid();
+      lastFall = 0;
+      requestAnimationFrame(gameStep);
+    };
+
+    const handleCommand = (command) => {
+      if (!current || pieceLocked) return;
+      const now = Date.now();
+      if (lastActionTime[command] && now - lastActionTime[command] < ACTION_COOLDOWN) return;
+      lastActionTime[command] = now;
+      if (command === "left" && validMove(current.shape, -1, 0)) current.x--;
+      if (command === "right" && validMove(current.shape, 1, 0)) current.x++;
+      if (command === "down" && validMove(current.shape, 0, 1)) current.y++;
+      if (command === "rotate") rotate();
+      if (command === "drop" && !justDropped) {
+        drop();
+        justDropped = true;
+        pieceLocked = true;
+      }
+    };
+
+    // Reset drop lock and piece lock on any user input (keyboard or voice)
+    const resetDropLocks = () => {
+      justDropped = false;
+      pieceLocked = false;
+    };
+
+    // Voice setup
+    const startListening = () => {
+      if (!('webkitSpeechRecognition' in window)) {
+        alert("Voice recognition not supported. Try Chrome.");
+        return;
+      }
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      const recognition = new SpeechRecognition();
+      recognition.continuous = true;
+      recognition.interimResults = false; // Only process final results for faster response
+      recognition.lang = 'en-US';
+
+      recognition.onresult = (event) => {
+        for (let i = event.resultIndex; i < event.results.length; ++i) {
+          if (!event.results[i].isFinal) continue; // Only act on final results
+          const transcript = event.results[i][0].transcript.trim().toLowerCase();
+          if (transcript.includes('start')) {
+            if (!startTime) startGame();
+          }
+          // Only trigger each command once per transcript
+          ["left", "right", "down", "rotate", "drop"].forEach(cmd => {
+            // Use word boundary to avoid multiple triggers
+            const regex = new RegExp(`\\b${cmd}\\b`);
+            if (regex.test(transcript)) {
+              handleCommand(cmd);
+              resetDropLocks(); // Reset drop lock after a new command
+            }
+          });
+        }
+      };
+
+      recognition.onerror = (event) => {
+        console.log('Speech recognition error:', event.error);
+      };
+      recognition.onend = () => {
+        console.log('Speech recognition ended, restarting...');
+        recognition.start();
+      };
+      recognition.start();
+      listening = true;
+    };
+
+    document.addEventListener('keydown', (e) => {
+      if (!startTime) {
+        startGame();
+        return;
+      }
+      resetDropLocks(); // Reset drop lock on any key press
+      switch (e.key) {
+        case 'ArrowLeft':
+          handleCommand('left');
+          break;
+        case 'ArrowRight':
+          handleCommand('right');
+          break;
+        case 'ArrowDown':
+          handleCommand('down');
+          break;
+        case 'ArrowUp':
+        case 'x':
+        case 'X':
+          handleCommand('rotate');
+          break;
+        case ' ': // Spacebar
+          handleCommand('drop');
+          break;
+      }
+    });
+
+    window.onload = () => {
+      drawGrid();
+      if (!listening) startListening();
+    };
+  </script>
+</body>
+</html>
